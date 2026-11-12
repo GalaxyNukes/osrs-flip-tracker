@@ -68,7 +68,7 @@ test('active flip quote uses the conservative side of live and 1h prices', () =>
   assert.equal(q.buyAt, 1250);   // max(live low 1245, 1h avg low 1250)
   assert.equal(q.sellAt, 1305);  // min(live high 1310, 1h avg high 1305)
   assert.equal(q.per, 1305 - 26 - 1250);
-  assert.equal(q.qty, Math.min(Math.floor(10000 * 0.15), Math.floor(2500000 / 1250), 10000));
+  assert.equal(q.qty, Math.min(Math.floor(10000 * 0.08), Math.floor(2500000 / 1250), 10000));
   assert.equal(q.profit, q.per * q.qty);
   assert.equal(q.level, 'pass');
 });
@@ -77,7 +77,7 @@ test('quantity respects cash, buy limit and volume share', () => {
   const m = mkt();
   assert.equal(GE.flipQuote(ITEM, m, 'active', { now: NOW, cash: 125000 }).qty, 100);            // cash
   assert.equal(GE.flipQuote(ITEM, m, 'active', { now: NOW, cash: 1e9, limitLeft: 40 }).qty, 40); // limit left
-  assert.equal(GE.flipQuote(ITEM, m, 'active', { now: NOW, cash: 1e9 }).qty, 1500);              // 15% of 10,000
+  assert.equal(GE.flipQuote(ITEM, m, 'active', { now: NOW, cash: 1e9 }).qty, 800);               // 8% of 10,000
 });
 
 test('stale, illiquid, falling and too-good prices fail', () => {
@@ -89,6 +89,17 @@ test('stale, illiquid, falling and too-good prices fail', () => {
   assert.equal(GE.flipQuote(ITEM, falling, 'active', { now: NOW, cash: 1e7 }).level, 'fail');
   const silly = mkt(); silly.latest[1].high = 2600; silly.h1[1].avgHighPrice = 2500;
   assert.equal(GE.flipQuote(ITEM, silly, 'active', { now: NOW, cash: 1e7 }).level, 'fail');
+});
+
+test('one-tick gaps on cheap items fail', () => {
+  const m = mkt();
+  m.latest[1] = { high: 92, highTime: NOW - 30, low: 89, lowTime: NOW - 30 };
+  m.m5[1] = { avgHighPrice: 92, highPriceVolume: 90000, avgLowPrice: 89, lowPriceVolume: 90000 };
+  m.h1[1] = { avgHighPrice: 92, highPriceVolume: 1300000, avgLowPrice: 89, lowPriceVolume: 1300000 };
+  m.d1[1] = { avgHighPrice: 92, highPriceVolume: 30000000, avgLowPrice: 89, lowPriceVolume: 30000000 };
+  const q = GE.flipQuote(ITEM, m, 'active', { now: NOW, cash: 1e7 });
+  assert.equal(q.level, 'fail');
+  assert.ok(q.checks.some(c => c.key === 'tick'));
 });
 
 test('no quote when there is no profit after tax or data is missing', () => {

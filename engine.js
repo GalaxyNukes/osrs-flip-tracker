@@ -107,8 +107,8 @@
     var vdmax = d ? Math.max(d.highPriceVolume || 0, d.lowPriceVolume || 0) : 0;
 
     var volCap = mode === 'active'
-      ? Math.max(v1 >= 4 ? 1 : 0, Math.floor(v1 * 0.15))
-      : Math.max(vd >= 8 ? 1 : 0, Math.floor(vd * 0.05));
+      ? Math.max(v1 >= 6 ? 1 : 0, Math.floor(v1 * 0.08))   // small enough to fill within the hour
+      : Math.max(vd >= 20 ? 1 : 0, Math.floor(vd * 0.02));  // small enough to fill overnight
     var afford = Math.floor((ctx.cash || 0) / buyAt);
     var limit = item.limit > 0 ? item.limit : null;
     var limitLeft = ctx.limitLeft != null ? ctx.limitLeft : limit;
@@ -161,7 +161,8 @@
     else if (trend >= 0.07) checks.push(check('trend', 'warn', 'Price jumped ' + pct(trend) + ' against the day and may fall back'));
     else checks.push(check('trend', 'pass', 'Price is steady against the day'));
 
-    var roi = per / buyAt;
+    var roi = per / buyAt, gap = sellAt - buyAt;
+    if (gap <= 3) checks.push(check('tick', 'fail', 'The gap is only ' + gap + ' gp, the smallest steps a price can move. Bots queue at these prices, so your offer may never be reached'));
     if (roi > 0.25) checks.push(check('sane', 'fail', 'Too good to be true: ' + pct(roi) + ' profit usually means a broken price'));
     else if (roi > 0.10) checks.push(check('sane', 'warn', 'Very wide gap (' + pct(roi) + '); these rarely last'));
     if (midH != null && Math.abs(midL - midH) / midH > 0.05) checks.push(check('jump', 'warn', 'The latest trades are far from the hourly average'));
@@ -188,8 +189,8 @@
      Replays history. A decision at index t reads only windows before t.
      series: [{timestamp, avgHighPrice, highPriceVolume, avgLowPrice, lowPriceVolume}] oldest first */
   var BT = {
-    active: { lookback: 12, horizon: 24, step: 4, stepMin: 5, share: 0.25 },
-    overnight: { lookback: 24, horizon: 12, step: 3, stepMin: 60, share: 0.25 }
+    active: { lookback: 12, horizon: 24, step: 4, stepMin: 5, share: 0.3 },
+    overnight: { lookback: 24, horizon: 16, step: 3, stepMin: 60, share: 0.3 }
   };
   function decideAt(series, t, mode) {
     var p = BT[mode], lo = 0, loV = 0, hi = 0, hiV = 0, lastLow = null, lastHigh = null;
