@@ -146,11 +146,14 @@
   function rank(q) { return q.ev != null ? q.ev : q.profit * 0.4; }
   function shortlist(list, c, n) {
     var pre = list.filter(function (q) {
-      return q.level !== 'fail' && q.qty >= 1 && q.profit >= c.minProfit && !c.openIds[q.id];
+      return q.level === 'pass' && q.qty >= 1 && q.profit >= c.minProfit && !c.openIds[q.id]; // first screen: every check must pass
     }).sort(function (a, b) { return pre_(b) - pre_(a); }).slice(0, n).map(decorate);
-    return pre.filter(function (q) { return q.v.cls !== 'risky'; }).sort(function (a, b) { return rank(b) - rank(a); });
+    return pre.filter(function (q) { return q.v.cls !== 'risky'; }).sort(function (a, b) {
+      var sa = a.v.cls === 'strong' ? 1 : 0, sb = b.v.cls === 'strong' ? 1 : 0;
+      return sb - sa || rank(b) - rank(a); // Strong first, then by expected profit
+    });
   }
-  function pre_(q) { return q.profit * (q.level === 'pass' ? 1 : 0.6) * (q.roi > 0.05 ? 0.5 : 1); }
+  function pre_(q) { return q.profit * (q.roi > 0.05 ? 0.5 : 1); }
 
   function compute() {
     var st = S.settings;
